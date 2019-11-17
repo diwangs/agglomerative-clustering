@@ -1,8 +1,8 @@
-from utils import flatten, euclidean_distance
+from utils import *
 
 class AggloClustering():
-    def __init__(self, distance_function, n_clusters):
-        self.distance_function = distance_function
+    def __init__(self, linkage_distance_function, n_clusters):
+        self.linkage_distance_function = linkage_distance_function
         self.n_clusters = n_clusters
         self.subclusters = []
 
@@ -18,6 +18,23 @@ class AggloClustering():
             self.subclusters.remove(nearest_pair_1)
             self.subclusters.remove(nearest_pair_2)
 
+    def fit_predict(self, X):
+        self.fit(X)
+        X = list(map(tuple, X))
+        # Flatten cluster
+        flattened_clusters = []
+        for subcluster in self.subclusters:
+            flattened_cluster = flatten(subcluster)
+            flattened_clusters.append(flattened_cluster)
+        # Make labels
+        predictions = []
+        for x in X:
+            for cluster_idx in range(len(flattened_clusters)):
+                if x in flattened_clusters[cluster_idx]:
+                    predictions.append(cluster_idx)
+                    break
+        return predictions
+
     def predict(self, X):
         if not self.subclusters:
             raise ValueError("Train dulu...")
@@ -28,21 +45,7 @@ class AggloClustering():
             tupled = tuple(sum(elements)/len(flattened) for elements in zip(*flattened))
             centroids.append(tupled)
         # Predict clusters
-        predictions = []
-        for x in X:
-            best_distance = float("inf") 
-            best_cluster = None
-            for cluster_idx in range(len(centroids)):
-                distance = euclidean_distance(x, centroids[cluster_idx])
-                if best_distance > distance:
-                    best_cluster = cluster_idx
-                    best_distance = distance
-            predictions.append(best_cluster)
-        return predictions
-
-    def fit_predict(self, X):
-        self.fit(X)
-        return self.predict(X)
+        return predict_on_centroids(X, centroids)
 
     def __find_nearest_pair(self):
         if len(self.subclusters) < 2:
@@ -53,7 +56,7 @@ class AggloClustering():
             best_pair_2 = None
             for i in range(len(self.subclusters) - 1):
                 for j in range(i + 1, len(self.subclusters)):
-                    curr_min = self.distance_function(self.subclusters[i], self.subclusters[j])
+                    curr_min = self.linkage_distance_function(self.subclusters[i], self.subclusters[j])
                     if best_min > curr_min:
                         best_min = curr_min
                         best_pair_1 = self.subclusters[i]
